@@ -1,54 +1,47 @@
-# HyperGKAN - 超图Kolmogorov-Arnold网络用于气象预测
+# HyperKAN - 超图Kolmogorov-Arnold网络用于气象预测
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-orange.svg)](https://pytorch.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-基于论文 **"Hypergraph Kolmogorov–Arnold Networks for Station-Level Meteorological Forecasting"** 的PyTorch实现。
+基于论文 **"Hypergraph Kolmogorov–Arnold Networks for Station-Level Meteorological Forecasting"** 的 PyTorch 实现。
 
-## 🌟 特性
+## 核心特性
 
-- ✅ **双超图架构**: 邻域超图（地理距离）+ 语义超图（时间序列相似度）
-- ✅ **KAN替代MLP**: 使用可学习样条函数提升非线性表达能力
-- ✅ **Seq2Seq时序建模**: GRU Encoder-Decoder架构
-- ✅ **灵活配置系统**: 所有超参数通过YAML配置
-- ✅ **训练暂停恢复**: 支持中断后继续训练
-- ✅ **完整评估流程**: 多指标评估 + 可视化
-- 🆕 **智能超图缓存**: 参数不变时自动复用，加速370倍 ⚡
-- 🆕 **超图可视化**: 自动生成超图结构分布图，独立保存
-- 🆕 **定时自动暂停**: 设置训练时长，到时自动保存并暂停
+- **双超图架构**: 邻域超图（地理距离）+ 语义超图（时间序列相似度）
+- **KAN替代MLP**: 使用可学习样条函数提升非线性表达能力
+- **Seq2Seq时序建模**: GRU Encoder-Decoder 架构
+- **智能超图缓存**: 参数不变时自动复用，加速 370 倍 ⚡
+- **气象要素自适应配置**: 根据不同气象要素自动应用科学配置
+- **训练暂停恢复**: 支持中断后继续训练
+- **定时自动暂停**: 设置训练时长，到时自动保存并暂停
+- **完整评估流程**: 多指标评估 + 可视化 + 基线对比
 
 ---
 
-## 📦 安装
+## 快速开始
 
-### 1. 克隆仓库
+### 安装
 
 ```bash
+# 克隆仓库
 cd D:\bishe\code\hyper_kan
-```
 
-### 2. 安装依赖
-
-```bash
+# 安装依赖
 pip install -r requirements.txt
 ```
 
-**核心依赖:**
+**核心依赖**:
 - PyTorch >= 2.0.0
-- pykan >= 0.2.0 (KAN实现)
-- scikit-learn
-- pyyaml
-- matplotlib
-- tqdm
+- pykan >= 0.2.0
+- scikit-learn >= 1.3.0
+- pyyaml >= 6.0
+- matplotlib >= 3.7.0
 
----
-
-## 🚀 快速开始
-
-### 1. 准备数据
+### 准备数据
 
 将数据放置在以下位置：
+
 ```
 D:\bishe\WYB\
 ├── temperature\
@@ -56,382 +49,322 @@ D:\bishe\WYB\
 │   ├── val.pkl
 │   ├── test.pkl
 │   └── position.pkl
-├── cloud\...
-├── humidity\...
-└── wind\...
+├── cloud\
+├── humidity\
+└── wind\
 ```
 
-**数据格式要求:**
+**数据格式**:
 - `.pkl` 文件包含 `{'x': ..., 'y': ..., 'context': ..., 'position': ...}`
-- `x`: (T, N, F) - 时间步 x 站点数 x 特征维度
+- `x`: (T, N, F) - 时间步 × 站点数 × 特征维度
 - `position`: (N, 2) - [latitude, longitude]
 
-### 2. 配置参数
+### 训练
 
-编辑 `configs/config.yaml`:
+```bash
+# 基础训练
+python train.py --config configs/config.yaml
+
+# 或使用主程序
+python main.py train --config configs/config.yaml
+
+# 恢复训练
+python train.py --resume outputs/xxx/best_model.pt
+# 或
+python pause_resume/resume.py
+```
+
+### 预测
+
+```bash
+# 自动使用最新 checkpoint
+python predict.py
+
+# 指定 checkpoint
+python predict.py --checkpoint outputs/xxx/best_model.pt
+```
+
+---
+
+## 项目结构
+
+```
+hyper_kan/
+├── configs/                    # 配置文件
+│   └── config.yaml            # 主配置文件
+├── src/                        # 源代码
+│   ├── data/                  # 数据处理模块
+│   │   ├── pkl_loader.py      # PKL 数据加载
+│   │   ├── dataset.py         # PyTorch 数据集
+│   │   ├── preprocessing.py   # 数据预处理
+│   │   └── element_settings.py # 气象要素科学配置
+│   ├── graph/                 # 超图构建模块
+│   │   ├── hypergraph_nei.py  # 邻域超图
+│   │   ├── hypergraph_sem.py  # 语义超图
+│   │   └── hypergraph_utils.py # 超图工具
+│   ├── models/                # 模型架构
+│   │   ├── kan_layer.py       # KAN 层实现
+│   │   ├── hypergkan_conv.py  # 超图卷积层
+│   │   └── hypergkan_model.py # 完整模型
+│   ├── training/              # 训练模块
+│   │   └── trainer.py         # 训练器
+│   └── utils/                 # 工具模块
+│       ├── metrics.py         # 评估指标
+│       ├── logger.py          # 日志配置
+│       ├── checkpoint.py      # Checkpoint 管理
+│       └── visualization.py   # 可视化工具
+├── pause_resume/              # 暂停恢复机制
+│   ├── pause.py
+│   ├── resume.py
+│   └── README.md
+├── test/                      # 测试脚本
+├── data/                      # 数据目录
+│   └── cache/                 # 超图缓存
+├── visuals/                   # 可视化输出
+├── outputs/                   # 训练输出
+├── main.py                    # 主程序入口
+├── train.py                   # 训练脚本
+├── predict.py                 # 预测脚本
+├── visualize_hypergraph.py    # 超图可视化
+├── requirements.txt           # 依赖列表
+├── README.md                  # 本文件
+└── PROJECT_SUMMARY.md         # 项目总结
+```
+
+---
+
+## 配置说明
+
+### 数据集选择
+
+在 `configs/config.yaml` 中选择要训练的气象要素：
 
 ```yaml
-meta:
-  experiment_name: "HyperGKAN_Temperature"
-  element: "Temperature"  # Temperature / Cloud / Humidity / Wind
+dataset_selection:
+  Temperature: false
+  Cloud: true        # 训练云量预测
+  Humidity: false
+  Wind: false
+```
 
+### 关键配置参数
+
+```yaml
 data:
-  input_window: 12   # 输入时间步
-  output_window: 12  # 预测时间步
+  input_window: 12      # 输入时间步
+  output_window: 12     # 预测时间步
   batch_size: 16
+  num_stations: 768     # 站点采样数
 
 graph:
   neighbourhood:
-    top_k: 5  # 超边大小 (论文建议K=5)
+    top_k: 3           # 超边大小（由 element_settings 自动设置）
   semantic:
     similarity: "euclidean"  # euclidean / pearson / cosine
 
 model:
   kan:
-    use_kan: true       # true: 使用KAN, false: 使用MLP (消融实验)
-    grid_size: 5
+    use_kan: true       # true: KAN, false: MLP（消融实验）
+    grid_size: 3
     spline_order: 3
+  hypergkan_layer:
+    num_layers: 1
+    fusion_method: "add"  # concat / add / attention
 
 training:
+  time_limit_minutes: null  # 定时自动暂停（null 表示不限制）
   optimizer:
-    lr: 0.01  # 论文使用0.01
-  epochs: 500
+    type: "adam"
+    lr: 0.01
+  epochs: 100
   early_stopping:
-    patience: 35  # 论文使用35
-```
-
-### 3. 训练模型
-
-**基础训练:**
-```bash
-python train.py --config configs/config.yaml
-```
-
-**或使用主程序:**
-```bash
-python main.py train --config configs/config.yaml
-```
-
-**恢复训练:**
-```bash
-python train.py --resume outputs/20260126_123456_Temperature/best_model.pt
-```
-
-### 4. 预测评估
-
-```bash
-python predict.py --config configs/config.yaml --checkpoint outputs/xxx/best_model.pt
-```
-
-**或:**
-```bash
-python main.py predict --config configs/config.yaml --checkpoint outputs/xxx/best_model.pt
+    patience: 10
+  use_amp: true        # 混合精度训练
 ```
 
 ---
 
-## 📊 项目结构
+## 气象要素科学配置
 
+项目根据不同气象要素的特点，自动应用科学配置：
+
+| 要素 | K 值 | 输出维度 | 特殊处理 |
+|------|------|----------|----------|
+| Temperature | 3 | 1 | K → °C 转换 |
+| Cloud | 3 | 1 | 比例值 [0,1] |
+| Humidity | 2 | 1 | 相对湿度 % |
+| Wind | 3 | 2 | u/v 分量 |
+
+**科学依据**: 论文 Section 4.4 - 不同要素对 K 的敏感度不同
+
+---
+
+## 高级功能
+
+### 1. 智能超图缓存 ⚡
+
+**性能提升**:
+- 首次训练: ~8 分钟（2048 个站点）
+- 第二次训练: ~1 秒（加速 370 倍）
+
+**配置**:
+```yaml
+graph:
+  use_cache: true
+  cache_dir: "data/cache"
 ```
-hyper_kan/
-├── configs/
-│   └── config.yaml              # 配置文件
-├── src/
-│   ├── data/
-│   │   ├── pkl_loader.py        # 数据加载
-│   │   └── dataset.py           # PyTorch数据集
-│   ├── graph/
-│   │   ├── hypergraph_nei.py    # 邻域超图构建
-│   │   ├── hypergraph_sem.py    # 语义超图构建
-│   │   └── hypergraph_utils.py  # 超图工具函数
-│   ├── models/
-│   │   ├── kan_layer.py         # KAN层实现
-│   │   ├── hypergkan_conv.py    # 超图卷积层
-│   │   └── hypergkan_model.py   # 完整模型
-│   ├── training/
-│   │   └── trainer.py           # 训练器
-│   └── utils/
-│       ├── metrics.py           # 评估指标
-│       ├── logger.py            # 日志配置
-│       ├── checkpoint.py        # Checkpoint管理
-│       └── visualization.py     # 可视化工具
-├── pause_resume/
-│   ├── pause.py                 # 暂停指南
-│   ├── resume.py                # 恢复训练脚本
-│   └── README.md                # 暂停恢复说明
-├── main.py                      # 主程序入口
-├── train.py                     # 训练脚本
-├── predict.py                   # 预测脚本
-├── requirements.txt             # 依赖列表
-└── README.md                    # 本文件
+
+**管理**:
+```bash
+# 查看缓存
+ls data/cache/
+
+# 清理缓存
+rm -rf data/cache/*
+```
+
+### 2. 超图可视化
+
+**配置**:
+```yaml
+graph:
+  visualize: true
+  visual_dir: "visuals"
+```
+
+**查看**:
+```
+visuals/
+└── Temperature/
+    ├── hypergraph_neighbourhood_K3_knn.png
+    └── hypergraph_semantic_K3_euclidean.png
+```
+
+### 3. 定时自动暂停
+
+**配置**:
+```yaml
+training:
+  time_limit_minutes: 100  # 100 分钟后自动暂停
+```
+
+### 4. 训练暂停与恢复
+
+详见 [`pause_resume/README.md`](pause_resume/README.md)
+
+```bash
+# 快速恢复
+python pause_resume/resume.py
 ```
 
 ---
 
-## 🧪 消融实验
+## 消融实验
 
-### 1. 禁用KAN（使用MLP）
+### 禁用 KAN（使用 MLP）
 
 ```yaml
 model:
   kan:
-    use_kan: false  # 切换为MLP
+    use_kan: false
 ```
 
-### 2. 仅使用邻域超图
+### 禁用语义超图
 
 ```yaml
 ablation:
-  disable_semantic: true  # 禁用语义超图
+  disable_semantic: true
 ```
 
-### 3. 仅使用语义超图
+### 禁用邻域超图
 
 ```yaml
 ablation:
-  disable_neighbourhood: true  # 禁用邻域超图
+  disable_neighbourhood: true
 ```
 
-### 4. 调整超边大小K
+### K 值实验
 
 ```yaml
 graph:
   neighbourhood:
-    top_k: 3  # 尝试 K = 2, 3, 4, 5, 6
-  semantic:
-    top_k: 3
+    top_k: 2  # 尝试 K = 2, 3, 4, 5, 6
 ```
 
 ---
 
-## 📈 训练监控
+## 评估指标
 
-训练过程中会自动保存：
+- **MAE** (Mean Absolute Error): 平均绝对误差
+- **RMSE** (Root Mean Squared Error): 均方根误差
+- **MAPE** (Mean Absolute Percentage Error): 平均绝对百分比误差
+
+**按预测步长评估**: Horizon 3 / 6 / 12
+
+---
+
+## 训练监控
+
+训练过程中自动保存：
 
 - **Checkpoint**: `outputs/<timestamp>/checkpoint_epoch_<N>.pt`
 - **最佳模型**: `outputs/<timestamp>/best_model.pt`
 - **损失曲线**: `outputs/<timestamp>/loss_curve.png`
 - **训练日志**: `outputs/<timestamp>/train_<timestamp>.log`
 
-### 实时查看日志
-
-```bash
-tail -f outputs/20260126_123456_Temperature/train_20260126_123456.log
-```
-
 ---
 
-## 🔧 高级功能
+## 常见问题
 
-### 1. 智能超图缓存 🆕⚡
+### CUDA Out of Memory
 
-**自动缓存**: 超图构建后自动保存，参数不变时直接加载。
-
-**性能提升**:
-- 首次训练: ~8分钟（2048个站点）
-- 第二次训练: ~1秒 ⚡ **加速370倍！**
-
-**配置方法:**
-
-编辑 `configs/config.yaml`:
-```yaml
-graph:
-  use_cache: true         # 启用缓存（默认）
-  cache_dir: "data/cache" # 缓存目录
-```
-
-**训练输出**:
-```
-Building/Loading hypergraphs...
-✓ Found cached neighbourhood hypergraph: data/cache/Temperature_nei_K5_knn_geoTrue_decay0.1.npz
-✓ Found cached semantic hypergraph: data/cache/Temperature_sem_K5_euclidean_win12_normTrue.npz
-```
-
-**缓存管理**:
-```bash
-# 查看缓存
-ls data/cache/
-
-# 清理缓存（强制重建）
-rm -rf data/cache/*
-
-# 清理特定要素
-rm data/cache/Temperature_*
-```
-
-详见 [`超图缓存与可视化说明.md`](超图缓存与可视化说明.md)
-
-### 2. 超图可视化 🆕
-
-**独立保存**: 可视化图保存在 `visuals` 文件夹，按要素分类。
-
-**启用方法:**
-
-编辑 `configs/config.yaml`:
-```yaml
-graph:
-  visualize: true         # 启用可视化
-  visual_dir: "visuals"   # 可视化目录
-```
-
-**查看位置:**
-```
-visuals/
-└── Temperature/
-    ├── hypergraph_neighbourhood_K5_knn.png
-    └── hypergraph_semantic_K5_euclidean.png
-```
-
-**查看图片:**
-```bash
-# Windows
-start visuals/Temperature/hypergraph_neighbourhood_K5_knn.png
-
-# Mac/Linux
-open visuals/Temperature/hypergraph_neighbourhood_K5_knn.png
-```
-
-**手动生成:**
-```bash
-python visualize_hypergraph.py --element Temperature --K 5
-```
-
-### 3. 定时自动暂停 🆕
-
-设置训练时长，到时自动保存checkpoint并暂停。
-
-**配置方法:**
-
-编辑 `configs/config.yaml`:
-```yaml
-training:
-  time_limit_minutes: 100  # 100分钟后自动暂停
-```
-
-**训练过程显示:**
-```
-Epoch 50/500:
-  Train Loss: 0.5098
-  Val Loss: 0.5912
-  Elapsed Time: 100.2/100 min (remaining: -0.2 min)
-
-============================================================
-⏰ TIME LIMIT REACHED - Auto-pausing training
-============================================================
-Checkpoint saved successfully!
-```
-
-**恢复训练:**
-```bash
-python pause_resume/resume.py
-```
-
-详见 [`FEATURES_GUIDE.md`](FEATURES_GUIDE.md#功能2-定时自动暂停)
-
-### 4. 训练暂停与恢复
-
-详见 [`pause_resume/README.md`](pause_resume/README.md)
-
-**快速恢复:**
-```bash
-python pause_resume/resume.py  # 自动查找最新checkpoint
-```
-
-### 2. 多元素训练
-
-```bash
-# 温度
-python train.py --config configs/config.yaml
-
-# 修改config中的element字段为"Cloud"后
-python train.py --config configs/config.yaml
-
-# 或创建多个配置文件
-python train.py --config configs/config_cloud.yaml
-python train.py --config configs/config_humidity.yaml
-```
-
-### 3. 超参数搜索
-
-修改配置文件中的关键参数：
-- `graph.neighbourhood.top_k`: 超边大小 (2-6)
-- `training.optimizer.lr`: 学习率 (0.001-0.01)
-- `model.hypergkan_layer.num_layers`: 层数 (1-3)
-
----
-
-## 📊 评估指标
-
-模型评估包括以下指标：
-
-- **MAE** (Mean Absolute Error): 平均绝对误差
-- **RMSE** (Root Mean Squared Error): 均方根误差
-- **MAPE** (Mean Absolute Percentage Error): 平均绝对百分比误差
-
-**按预测步长评估:**
-- Horizon 3: 前3步
-- Horizon 6: 前6步
-- Horizon 12: 全部12步
-
----
-
-## 🎯 论文复现建议
-
-基于论文和复现指引，建议的实验流程：
-
-### Level 1: 基础复现
-1. ✅ 使用Temperature数据
-2. ✅ K=5, batch_size=16, lr=0.01
-3. ✅ 训练至收敛 (early_stop=35)
-4. ✅ 对比 MAE / RMSE
-
-### Level 2: 完整复现
-1. ✅ 所有气象变量 (Temp, Cloud, Humidity, Wind)
-2. ✅ 消融实验 (w/o-KAN, w/o-Sem, w/o-Nei)
-3. ✅ K值对比 (K=2,3,4,5,6)
-
-### Level 3: 扩展实验
-1. ✅ 不同相似度度量 (Euclidean, Pearson, Cosine)
-2. ✅ 不同融合策略 (Concat, Add, Attention)
-3. ✅ 与baseline模型对比 (STGCN, DCRNN, Transformer)
-
----
-
-## 🐛 常见问题
-
-### 1. CUDA Out of Memory
-
-**解决方案:**
 - 减小 `batch_size`
 - 减小 `d_model` 或 `hidden_channels`
 - 使用更少的超图卷积层
 
-### 2. pykan导入失败
+### pykan 导入失败
 
-**解决方案:**
 ```bash
 pip install pykan --upgrade
 ```
 
-如果仍失败，模型会自动降级为标准MLP。
+如果仍失败，模型会自动降级为标准 MLP。
 
-### 3. 训练不收敛
+### 训练不收敛
 
-**可能原因:**
-- 学习率过大 -> 尝试 `lr=0.001`
-- KAN层过深 -> 减少层数
-- 数据未归一化 -> 检查 `config.yaml` 中的 `normalize: true`
-
-### 4. 超图构建慢
-
-**解决方案:**
-- 启用缓存: `graph.use_cache: true`
-- 减少 `top_k` 值
-- 使用更少的站点进行测试
+- 学习率过大 → 尝试 `lr=0.001`
+- KAN 层过深 → 减少层数
+- 数据未归一化 → 检查配置
 
 ---
 
-## 📚 参考文献
+## 模型架构
+
+```
+输入 (B, T_in, N, F)
+  ↓
+Input Projection (Linear)
+  ↓
+[HyperGKAN Encoder Layers]
+  ├─ DualHyperGKANConv (Nei + Sem → Fuse)
+  └─ Residual + LayerNorm
+  ↓
+GRU Encoder
+  ↓
+[Hidden State]
+  ↓
+GRU Decoder
+  ↓
+[HyperGKAN Decoder Layers]
+  ↓
+Output Projection (Linear)
+  ↓
+输出 (B, T_out, N, output_dim)
+```
+
+---
+
+## 参考文献
 
 ```bibtex
 @article{tang2024hypergkan,
@@ -444,33 +377,14 @@ pip install pykan --upgrade
 
 ---
 
-## 📄 许可证
+## 许可证
 
 本项目采用 MIT 许可证。详见 [LICENSE](LICENSE) 文件。
 
 ---
 
-## 🤝 贡献
-
-欢迎提交 Issue 和 Pull Request！
-
----
-
-## 📧 联系方式
-
-如有问题，请通过以下方式联系：
-
-- 📧 Email: [您的邮箱]
-- 💬 Issues: [GitHub Issues](链接)
-
----
-
-## 🎉 致谢
+## 致谢
 
 - 论文作者: Jian Tang, Kai Ma
-- pykan库: [KindXiaoming/pykan](https://github.com/KindXiaoming/pykan)
+- pykan 库: [KindXiaoming/pykan](https://github.com/KindXiaoming/pykan)
 - 数据集: WeatherBench
-
----
-
-**祝您训练顺利！🚀**
