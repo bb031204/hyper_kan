@@ -383,6 +383,11 @@ Output Projection (Linear)
 
 ---
 
+## 联系我
+任何问题或者建议，请联系 martin_2003@163.com
+
+---
+
 ## 致谢
 
 - 论文作者: Jian Tang, Kai Ma
