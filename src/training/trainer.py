@@ -313,7 +313,7 @@ class Trainer:
         return avg_loss
     
     def validate(self) -> Dict[str, float]:
-        """验证"""
+        """验证（使用 AMP 加速推理，与训练保持一致）"""
         self.model.eval()
         val_loss = 0.0
         num_batches = 0
@@ -326,16 +326,29 @@ class Trainer:
                 x = batch['x'].to(self.device)
                 y = batch['y'].to(self.device)
 
-                pred = self.model(x, self.H_nei, self.H_sem,
-                                 self.W_nei, self.W_sem,
-                                 output_length=y.shape[1])
+                # 验证也使用 AMP 加速（与训练一致，避免验证比训练慢数倍）
+                if self.use_amp:
+                    try:
+                        autocast_context = autocast(device_type='cuda', dtype=torch.float16)
+                    except TypeError:
+                        autocast_context = autocast()
 
-                loss = self.loss_fn(pred, y)
+                    with autocast_context:
+                        pred = self.model(x, self.H_nei, self.H_sem,
+                                         self.W_nei, self.W_sem,
+                                         output_length=y.shape[1])
+                        loss = self.loss_fn(pred, y)
+                else:
+                    pred = self.model(x, self.H_nei, self.H_sem,
+                                     self.W_nei, self.W_sem,
+                                     output_length=y.shape[1])
+                    loss = self.loss_fn(pred, y)
+
                 val_loss += loss.item()
                 num_batches += 1
 
-                all_preds.append(pred.cpu())
-                all_targets.append(y.cpu())
+                all_preds.append(pred.float().cpu())
+                all_targets.append(y.float().cpu())
 
         avg_val_loss = val_loss / num_batches
 
