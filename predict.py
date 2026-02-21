@@ -125,7 +125,7 @@ def find_latest_checkpoint() -> Optional[str]:
 def compare_with_baselines(overall_metrics: dict, horizon_metrics: dict,
                            element: str, logger) -> dict:
     """
-    与基线模型对比
+    与基线模型对比（仅计算，不输出日志）
 
     Args:
         overall_metrics: 整体指标
@@ -134,39 +134,28 @@ def compare_with_baselines(overall_metrics: dict, horizon_metrics: dict,
         logger: 日志记录器
 
     Returns:
-        对比结果字典
+        对比结果字典，包含所有基线模型的完整信息
     """
     if element not in BASELINE_METRICS:
         logger.warning(f"警告: 元素 {element} 没有基线数据")
         return None
 
-    logger.info("")
-    logger.info("=" * 60)
-    logger.info(f"{GREEN}📊 与基线模型对比 (Baseline Comparison){RESET}")
-    logger.info("=" * 60)
-
-    comparison = {}
-
-    # 整体对比
-    baseline_12h = BASELINE_METRICS[element]['12h']
-    logger.info(f"\n{YELLOW}整体预测 (12小时){RESET}")
-    logger.info("-" * 60)
-    logger.info(f"{'模型':<15} {'MAE':>10} {'RMSE':>10} {'vs HyperGKAN':>15}")
-    logger.info("-" * 60)
+    comparison = {
+        'element': element,
+        'overall': {},
+        'by_horizon': {}
+    }
 
     hypergkan_mae = overall_metrics['mae']
     hypergkan_rmse = overall_metrics['rmse']
 
+    # 整体对比 (12h)
+    baseline_12h = BASELINE_METRICS[element]['12h']
     for model_name, metrics in baseline_12h.items():
         mae_diff = ((hypergkan_mae - metrics['mae']) / metrics['mae']) * 100
         rmse_diff = ((hypergkan_rmse - metrics['rmse']) / metrics['rmse']) * 100
 
-        improvement = mae_diff < 0
-        diff_str = f"{mae_diff:+.1f}%"
-
-        logger.info(f"{model_name:<15} {metrics['mae']:>10.4f} {metrics['rmse']:>10.4f} {diff_str:>15}")
-
-        comparison[model_name] = {
+        comparison['overall'][model_name] = {
             'baseline_mae': metrics['mae'],
             'baseline_rmse': metrics['rmse'],
             'hypergkan_mae': hypergkan_mae,
@@ -175,43 +164,35 @@ def compare_with_baselines(overall_metrics: dict, horizon_metrics: dict,
             'rmse_improvement_pct': rmse_diff
         }
 
-    logger.info("-" * 60)
-    logger.info(f"{'HyperGKAN (Ours)':<15} {hypergkan_mae:>10.4f} {hypergkan_rmse:>10.4f} {'--':>15}")
-    logger.info("")
-
     # 分时段对比
-    logger.info(f"{YELLOW}分时段预测对比{RESET}")
-    logger.info("-" * 60)
-
     for horizon in [3, 6, 12]:
         if horizon in horizon_metrics:
             horizon_str = f"{horizon}h"
             if horizon_str in BASELINE_METRICS[element]:
-                logger.info(f"\n{horizon}小时预测:")
                 h_metrics = horizon_metrics[horizon]
                 h_baseline = BASELINE_METRICS[element][horizon_str]
 
-                logger.info(f"  {'模型':<15} {'MAE':>10} {'RMSE':>10}")
-                logger.info(f"  {'-'*40}")
+                comparison['by_horizon'][horizon] = {
+                    'hypergkan_mae': h_metrics['mae'],
+                    'hypergkan_rmse': h_metrics['rmse'],
+                    'baselines': {}
+                }
 
                 for model_name, metrics in h_baseline.items():
-                    logger.info(f"  {model_name:<15} {metrics['mae']:>10.4f} {metrics['rmse']:>10.4f}")
+                    comparison['by_horizon'][horizon]['baselines'][model_name] = {
+                        'mae': metrics['mae'],
+                        'rmse': metrics['rmse']
+                    }
 
-                logger.info(f"  {'HyperGKAN':<15} {h_metrics['mae']:>10.4f} {h_metrics['rmse']:>10.4f}")
-
-    # 总结
-    logger.info("")
-    logger.info("=" * 60)
-    best_baseline = baseline_12h['STGCN']  # 通常STGCN是最强的基线
-    mae_improvement = ((hypergkan_mae - best_baseline['mae']) / best_baseline['mae']) * 100
-
-    if mae_improvement < 0:
-        logger.info(f"{GREEN}✅ HyperGKAN 优于最强基线 (STGCN) {-mae_improvement:.1f}%{RESET}")
-    else:
-        logger.info(f"{YELLOW}⚠️ HyperGKAN 弱于最强基线 (STGCN) {+mae_improvement:.1f}%{RESET}")
-
-    logger.info("=" * 60)
-    logger.info("")
+    # 计算相对于最强基线(STGCN)的改进
+    if 'STGCN' in baseline_12h:
+        best_baseline = baseline_12h['STGCN']
+        mae_improvement = ((hypergkan_mae - best_baseline['mae']) / best_baseline['mae']) * 100
+        comparison['vs_stgcn'] = {
+            'stgcn_mae': best_baseline['mae'],
+            'stgcn_rmse': best_baseline['rmse'],
+            'mae_improvement_pct': mae_improvement
+        }
 
     return comparison
 
@@ -320,46 +301,92 @@ def save_results(inputs, predictions, targets, overall_metrics, horizon_metrics,
 
     logger.info(f"Metrics saved to {output_dir}/metrics.json")
 
-    # 保存对比summary文本
-    if comparison is not None:
+    # 保存对比summary文本（完整版）
+    if comparison is not None and 'overall' in comparison:
         summary_path = os.path.join(output_dir, 'baseline_comparison_summary.txt')
         with open(summary_path, 'w', encoding='utf-8') as f:
-            f.write("=" * 70 + "\n")
-            f.write("HyperGKAN vs Baseline Models Comparison Summary\n")
-            f.write("=" * 70 + "\n\n")
+            f.write("=" * 75 + "\n")
+            f.write("HyperGKAN vs Baseline Models - Complete Comparison Summary\n")
+            f.write("=" * 75 + "\n\n")
 
-            f.write(f"Element: {config['meta']['element']}\n")
-            f.write(f"Prediction Horizon: 12 hours\n\n")
+            element = comparison.get('element', config['meta']['element'])
+            f.write(f"Element: {element}\n")
+            f.write(f"Prediction Horizon: 12 hours\n")
+            f.write(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
 
-            f.write("Overall Performance (12h):\n")
-            f.write("-" * 70 + "\n")
-            f.write(f"{'Model':<20} {'MAE':>12} {'RMSE':>12} {'Improvement':>15}\n")
-            f.write("-" * 70 + "\n")
+            # 整体对比 (12h)
+            f.write("=" * 75 + "\n")
+            f.write("Overall Performance (12 hours)\n")
+            f.write("=" * 75 + "\n\n")
+            f.write(f"{'Model':<20} {'MAE':>12} {'RMSE':>12} {'vs HyperGKAN':>18}\n")
+            f.write("-" * 75 + "\n")
 
             hypergkan_mae = overall_metrics['mae']
             hypergkan_rmse = overall_metrics['rmse']
 
-            for model_name, metrics in comparison.items():
+            for model_name, metrics in comparison['overall'].items():
                 mae_diff = metrics['mae_improvement_pct']
                 imp_str = f"{mae_diff:+.1f}%"
                 f.write(f"{model_name:<20} {metrics['baseline_mae']:>12.4f} "
-                       f"{metrics['baseline_rmse']:>12.4f} {imp_str:>15}\n")
+                       f"{metrics['baseline_rmse']:>12.4f} {imp_str:>18}\n")
 
-            f.write("-" * 70 + "\n")
+            f.write("-" * 75 + "\n")
             f.write(f"{'HyperGKAN (Ours)':<20} {hypergkan_mae:>12.4f} "
-                   f"{hypergkan_rmse:>12.4f} {'--':>15}\n")
-            f.write("\n")
+                   f"{hypergkan_rmse:>12.4f} {'--':>18}\n\n")
 
-            f.write("Performance by Horizon:\n")
-            f.write("-" * 70 + "\n")
+            # 分时段对比
+            f.write("=" * 75 + "\n")
+            f.write("Performance by Prediction Horizon\n")
+            f.write("=" * 75 + "\n")
+
             for horizon in [3, 6, 12]:
-                if horizon in horizon_metrics:
-                    h = horizon_metrics[horizon]
+                if horizon in comparison.get('by_horizon', {}):
+                    h_data = comparison['by_horizon'][horizon]
                     f.write(f"\n{horizon}h Prediction:\n")
-                    f.write(f"  MAE:  {h['mae']:.4f}\n")
-                    f.write(f"  RMSE: {h['rmse']:.4f}\n")
+                    f.write("-" * 75 + "\n")
+                    f.write(f"{'Model':<20} {'MAE':>12} {'RMSE':>12}\n")
+                    f.write("-" * 75 + "\n")
+
+                    for model_name, metrics in h_data['baselines'].items():
+                        f.write(f"{model_name:<20} {metrics['mae']:>12.4f} {metrics['rmse']:>12.4f}\n")
+
+                    f.write(f"{'HyperGKAN':<20} {h_data['hypergkan_mae']:>12.4f} {h_data['hypergkan_rmse']:>12.4f}\n\n")
+
+            # 总结
+            f.write("=" * 75 + "\n")
+            f.write("Summary\n")
+            f.write("=" * 75 + "\n\n")
+
+            if 'vs_stgcn' in comparison:
+                stgcn_data = comparison['vs_stgcn']
+                mae_imp = stgcn_data['mae_improvement_pct']
+                f.write(f"HyperGKAN vs STGCN (strongest baseline):\n")
+                f.write(f"  STGCN MAE:     {stgcn_data['stgcn_mae']:.4f}\n")
+                f.write(f"  HyperGKAN MAE: {hypergkan_mae:.4f}\n")
+                if mae_imp < 0:
+                    f.write(f"  Improvement:   {-mae_imp:.1f}% (lower is better)\n")
+                    f.write(f"  Result: HyperGKAN outperforms STGCN by {-mae_imp:.1f}%\n")
+                else:
+                    f.write(f"  Difference:   +{mae_imp:.1f}%\n")
+                    f.write(f"  Result: STGCN performs better by {mae_imp:.1f}%\n")
+                f.write("\n")
 
         logger.info(f"Baseline comparison summary saved to {summary_path}")
+
+        # 输出到控制台的简要摘要
+        logger.info("")
+        logger.info("=" * 60)
+        logger.info(f"{GREEN}📊 基线对比摘要{RESET}")
+        logger.info("=" * 60)
+        logger.info(f"整体预测 (12h) - MAE: {hypergkan_mae:.4f}, RMSE: {hypergkan_rmse:.4f}")
+        if 'vs_stgcn' in comparison:
+            mae_imp = comparison['vs_stgcn']['mae_improvement_pct']
+            if mae_imp < 0:
+                logger.info(f"{GREEN}✅ 优于 STGCN {-mae_imp:.1f}%{RESET}")
+            else:
+                logger.info(f"{YELLOW}⚠️ 与 STGCN 相差 {mae_imp:.1f}%{RESET}")
+        logger.info(f"详细对比结果已保存至: {summary_path}")
+        logger.info("")
 
     # 可视化
     if config['output']['save_plots']:
