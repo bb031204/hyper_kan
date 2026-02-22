@@ -6,9 +6,9 @@
 # 🔥 数据集选择（严格互斥：每次只能有一个为 true）
 # 选择后，数据路径、预处理策略、超图K值、输出维度均会自动适配
 dataset_selection:
-  Temperature: false   # 温度 (K→°C, output_dim=1, K=3)
+  Temperature: false    # 温度 (K→°C, output_dim=1, K=3)
   Cloud: false        # 云量 (fraction [0,1], output_dim=1, K=3)
-  Humidity: true     # 湿度 (%, output_dim=1, K=2, 论文Section 4.4)
+  Humidity: true    # 湿度 (%, output_dim=1, K=2, 论文Section 4.4)
   Wind: false         # 风速 (m/s, u+v分量, output_dim=2, K=3)
 
 # 元数据配置（element 和 experiment_name 由 dataset_selection 自动决定）

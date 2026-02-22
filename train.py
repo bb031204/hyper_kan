@@ -280,7 +280,7 @@ def sample_stations(train_data: dict, val_data: dict, test_data: dict,
                         sampled[key] = value[:, selected_indices, :]
                     else:
                         sampled[key] = value
-                    logger.info(f"  {name}.{key}: {value.shape} → {sampled[key].shape}")
+                    logger.info(f"  {name}.{key}: {value.shape} -> {sampled[key].shape}")
                 else:
                     sampled[key] = None
             else:

@@ -26,18 +26,27 @@ GREEN = '\033[92m'
 RESET = '\033[0m'
 
 
-# ==================== 基线模型指标 (WYB论文) ====================
-# 论文: "Hypergraph Kolmogorov–Arnold Networks for Station-Level Meteorological Forecasting"
-# 这些是论文中报告的基线方法在温度预测任务上的结果
+# ==================== 基线模型指标 ====================
+# 数据来源:
+#   - Temperature 论文基线 (MLP/LSTM/GCN/GAT/STGCN): 论文 Table 2
+#   - 实验基线: D:\bishe\WYB\bjut_MTS_prediction 中的实验结果
+#     - HA/ARIMA: 根目录 CSV 文件
+#     - STGCN/AGCRN/GWNET/ASTGCN/RNN/GRU/LSTM: libcity evaluate_cache + log 文件
+# 注: ARIMA 的 Temperature 和 Wind RMSE 列疑似为 MSE, 已取 sqrt 修正
 
 BASELINE_METRICS = {
     'Temperature': {
         '3h': {
+            # 论文基线
             'MLP': {'mae': 0.85, 'rmse': 1.12},
             'LSTM': {'mae': 0.78, 'rmse': 1.05},
             'GCN': {'mae': 0.82, 'rmse': 1.10},
             'GAT': {'mae': 0.76, 'rmse': 1.02},
             'STGCN': {'mae': 0.72, 'rmse': 0.98},
+            # 实验基线
+            'HA': {'mae': 8.688, 'rmse': 12.196},
+            'ARIMA': {'mae': 6.204, 'rmse': 8.349},
+            'RNN': {'mae': 5.850, 'rmse': 7.858},
         },
         '6h': {
             'MLP': {'mae': 1.15, 'rmse': 1.45},
@@ -45,6 +54,9 @@ BASELINE_METRICS = {
             'GCN': {'mae': 1.10, 'rmse': 1.42},
             'GAT': {'mae': 1.02, 'rmse': 1.35},
             'STGCN': {'mae': 0.98, 'rmse': 1.30},
+            'HA': {'mae': 8.688, 'rmse': 12.196},
+            'ARIMA': {'mae': 8.206, 'rmse': 8.375},
+            'RNN': {'mae': 5.838, 'rmse': 7.843},
         },
         '12h': {
             'MLP': {'mae': 1.65, 'rmse': 2.10},
@@ -52,22 +64,91 @@ BASELINE_METRICS = {
             'GCN': {'mae': 1.58, 'rmse': 2.05},
             'GAT': {'mae': 1.48, 'rmse': 1.95},
             'STGCN': {'mae': 1.42, 'rmse': 1.88},
+            'HA': {'mae': 8.688, 'rmse': 12.196},
+            'ARIMA': {'mae': 11.784, 'rmse': 8.462},
+            'RNN': {'mae': 5.824, 'rmse': 7.825},
         }
     },
     'Cloud': {
-        '3h': {'STGCN': {'mae': 0.12, 'rmse': 0.18}},
-        '6h': {'STGCN': {'mae': 0.18, 'rmse': 0.25}},
-        '12h': {'STGCN': {'mae': 0.25, 'rmse': 0.35}},
+        '3h': {
+            'HA': {'mae': 0.3223, 'rmse': 0.4463},
+            'ARIMA': {'mae': 0.3522, 'rmse': 0.6554},
+            'STGCN': {'mae': 0.2398, 'rmse': 0.2921},
+            'AGCRN': {'mae': 0.2065, 'rmse': 0.3082},
+            'GWNET': {'mae': 0.2079, 'rmse': 0.3117},
+            'ASTGCN': {'mae': 0.2396, 'rmse': 0.2928},
+            'RNN': {'mae': 0.2207, 'rmse': 0.3227},
+        },
+        '6h': {
+            'HA': {'mae': 0.3223, 'rmse': 0.4463},
+            'ARIMA': {'mae': 0.3829, 'rmse': 0.9436},
+            'STGCN': {'mae': 0.2419, 'rmse': 0.2953},
+            'AGCRN': {'mae': 0.2085, 'rmse': 0.3108},
+            'GWNET': {'mae': 0.2099, 'rmse': 0.3143},
+            'ASTGCN': {'mae': 0.2430, 'rmse': 0.2954},
+            'RNN': {'mae': 0.2205, 'rmse': 0.3225},
+        },
+        '12h': {
+            'HA': {'mae': 0.3223, 'rmse': 0.4463},
+            'ARIMA': {'mae': 0.3402, 'rmse': 1.0085},
+            'STGCN': {'mae': 0.2430, 'rmse': 0.2982},
+            'AGCRN': {'mae': 0.2099, 'rmse': 0.3125},
+            'GWNET': {'mae': 0.2113, 'rmse': 0.3163},
+            'ASTGCN': {'mae': 0.2465, 'rmse': 0.2977},
+            'RNN': {'mae': 0.2206, 'rmse': 0.3225},
+        },
     },
     'Humidity': {
-        '3h': {'STGCN': {'mae': 3.5, 'rmse': 5.2}},
-        '6h': {'STGCN': {'mae': 5.2, 'rmse': 7.8}},
-        '12h': {'STGCN': {'mae': 7.8, 'rmse': 11.5}},
+        '3h': {
+            'HA': {'mae': 14.208, 'rmse': 19.286},
+            'ARIMA': {'mae': 12.724, 'rmse': 24.274},
+            'RNN': {'mae': 9.343, 'rmse': 12.861},
+            'GRU': {'mae': 8.488, 'rmse': 11.699},
+            'LSTM': {'mae': 8.742, 'rmse': 12.031},
+            'STGCN': {'mae': 7.879, 'rmse': 10.870},
+            'AGCRN': {'mae': 7.593, 'rmse': 10.547},
+            'GWNET': {'mae': 7.629, 'rmse': 10.588},
+            'ASTGCN': {'mae': 7.872, 'rmse': 10.621},
+        },
+        '6h': {
+            'HA': {'mae': 14.208, 'rmse': 19.286},
+            'ARIMA': {'mae': 18.143, 'rmse': 41.001},
+            'RNN': {'mae': 9.333, 'rmse': 12.831},
+            'GRU': {'mae': 8.478, 'rmse': 11.668},
+            'LSTM': {'mae': 8.733, 'rmse': 12.004},
+            'STGCN': {'mae': 8.189, 'rmse': 11.200},
+            'AGCRN': {'mae': 7.798, 'rmse': 10.795},
+            'GWNET': {'mae': 7.840, 'rmse': 10.837},
+            'ASTGCN': {'mae': 8.105, 'rmse': 10.883},
+        },
+        '12h': {
+            'HA': {'mae': 14.208, 'rmse': 19.286},
+            'ARIMA': {'mae': 27.544, 'rmse': 81.546},
+            'RNN': {'mae': 9.304, 'rmse': 12.779},
+            'GRU': {'mae': 8.464, 'rmse': 11.629},
+            'LSTM': {'mae': 8.710, 'rmse': 11.956},
+            'STGCN': {'mae': 8.415, 'rmse': 11.419},
+            'AGCRN': {'mae': 7.939, 'rmse': 10.970},
+            'GWNET': {'mae': 7.985, 'rmse': 11.005},
+            'ASTGCN': {'mae': 8.275, 'rmse': 11.071},
+        },
     },
     'Wind': {
-        '3h': {'STGCN': {'mae': 0.35, 'rmse': 0.52}},
-        '6h': {'STGCN': {'mae': 0.52, 'rmse': 0.75}},
-        '12h': {'STGCN': {'mae': 0.75, 'rmse': 1.05}},
+        '3h': {
+            'HA': {'mae': 4.540, 'rmse': 6.196},
+            'ARIMA': {'mae': 12.100, 'rmse': 14.565},
+            'RNN': {'mae': 3.230, 'rmse': 4.392},
+        },
+        '6h': {
+            'HA': {'mae': 4.540, 'rmse': 6.196},
+            'ARIMA': {'mae': 13.218, 'rmse': 14.567},
+            'RNN': {'mae': 3.229, 'rmse': 4.392},
+        },
+        '12h': {
+            'HA': {'mae': 4.540, 'rmse': 6.196},
+            'ARIMA': {'mae': 15.527, 'rmse': 14.573},
+            'RNN': {'mae': 3.228, 'rmse': 4.394},
+        },
     }
 }
 
@@ -184,14 +265,25 @@ def compare_with_baselines(overall_metrics: dict, horizon_metrics: dict,
                         'rmse': metrics['rmse']
                     }
 
-    # 计算相对于最强基线(STGCN)的改进
+    # 计算相对于最强基线(MAE最低的模型)的改进
+    best_model_name = min(baseline_12h, key=lambda m: baseline_12h[m]['mae'])
+    best_baseline = baseline_12h[best_model_name]
+    mae_improvement = ((hypergkan_mae - best_baseline['mae']) / best_baseline['mae']) * 100
+    rmse_improvement = ((hypergkan_rmse - best_baseline['rmse']) / best_baseline['rmse']) * 100
+    comparison['vs_best_baseline'] = {
+        'model_name': best_model_name,
+        'baseline_mae': best_baseline['mae'],
+        'baseline_rmse': best_baseline['rmse'],
+        'mae_improvement_pct': mae_improvement,
+        'rmse_improvement_pct': rmse_improvement,
+    }
+    # 保留 vs_stgcn 兼容性
     if 'STGCN' in baseline_12h:
-        best_baseline = baseline_12h['STGCN']
-        mae_improvement = ((hypergkan_mae - best_baseline['mae']) / best_baseline['mae']) * 100
+        stgcn = baseline_12h['STGCN']
         comparison['vs_stgcn'] = {
-            'stgcn_mae': best_baseline['mae'],
-            'stgcn_rmse': best_baseline['rmse'],
-            'mae_improvement_pct': mae_improvement
+            'stgcn_mae': stgcn['mae'],
+            'stgcn_rmse': stgcn['rmse'],
+            'mae_improvement_pct': ((hypergkan_mae - stgcn['mae']) / stgcn['mae']) * 100
         }
 
     return comparison
@@ -357,35 +449,56 @@ def save_results(inputs, predictions, targets, overall_metrics, horizon_metrics,
             f.write("Summary\n")
             f.write("=" * 75 + "\n\n")
 
-            if 'vs_stgcn' in comparison:
-                stgcn_data = comparison['vs_stgcn']
-                mae_imp = stgcn_data['mae_improvement_pct']
-                f.write(f"HyperGKAN vs STGCN (strongest baseline):\n")
-                f.write(f"  STGCN MAE:     {stgcn_data['stgcn_mae']:.4f}\n")
+            if 'vs_best_baseline' in comparison:
+                best_data = comparison['vs_best_baseline']
+                best_name = best_data['model_name']
+                mae_imp = best_data['mae_improvement_pct']
+                f.write(f"HyperGKAN vs {best_name} (best baseline, lowest 12h MAE):\n")
+                f.write(f"  {best_name} MAE:     {best_data['baseline_mae']:.4f}\n")
+                f.write(f"  {best_name} RMSE:    {best_data['baseline_rmse']:.4f}\n")
                 f.write(f"  HyperGKAN MAE: {hypergkan_mae:.4f}\n")
+                f.write(f"  HyperGKAN RMSE:{hypergkan_rmse:.4f}\n")
                 if mae_imp < 0:
-                    f.write(f"  Improvement:   {-mae_imp:.1f}% (lower is better)\n")
-                    f.write(f"  Result: HyperGKAN outperforms STGCN by {-mae_imp:.1f}%\n")
+                    f.write(f"  MAE Improvement:  {-mae_imp:.1f}% (lower is better)\n")
+                    f.write(f"  Result: HyperGKAN outperforms {best_name} by {-mae_imp:.1f}%\n")
                 else:
-                    f.write(f"  Difference:   +{mae_imp:.1f}%\n")
-                    f.write(f"  Result: STGCN performs better by {mae_imp:.1f}%\n")
+                    f.write(f"  MAE Difference:   +{mae_imp:.1f}%\n")
+                    f.write(f"  Result: {best_name} performs better by {mae_imp:.1f}%\n")
                 f.write("\n")
+
+            # 排名统计
+            f.write("Ranking (12h MAE, ascending):\n")
+            all_models = {m: v['baseline_mae'] for m, v in comparison['overall'].items()}
+            all_models['HyperGKAN'] = hypergkan_mae
+            for rank, (name, mae) in enumerate(sorted(all_models.items(), key=lambda x: x[1]), 1):
+                marker = " <-- Ours" if name == 'HyperGKAN' else ""
+                f.write(f"  {rank}. {name:<20} MAE={mae:.4f}{marker}\n")
+            f.write("\n")
 
         logger.info(f"Baseline comparison summary saved to {summary_path}")
 
         # 输出到控制台的简要摘要
         logger.info("")
         logger.info("=" * 60)
-        logger.info(f"{GREEN}📊 基线对比摘要{RESET}")
+        logger.info(f"{GREEN}Baseline Comparison Summary{RESET}")
         logger.info("=" * 60)
-        logger.info(f"整体预测 (12h) - MAE: {hypergkan_mae:.4f}, RMSE: {hypergkan_rmse:.4f}")
-        if 'vs_stgcn' in comparison:
-            mae_imp = comparison['vs_stgcn']['mae_improvement_pct']
+        logger.info(f"Overall (12h) - MAE: {hypergkan_mae:.4f}, RMSE: {hypergkan_rmse:.4f}")
+
+        if 'vs_best_baseline' in comparison:
+            best_data = comparison['vs_best_baseline']
+            best_name = best_data['model_name']
+            mae_imp = best_data['mae_improvement_pct']
             if mae_imp < 0:
-                logger.info(f"{GREEN}✅ 优于 STGCN {-mae_imp:.1f}%{RESET}")
+                logger.info(f"{GREEN}Outperforms {best_name} (best baseline) by {-mae_imp:.1f}%{RESET}")
             else:
-                logger.info(f"{YELLOW}⚠️ 与 STGCN 相差 {mae_imp:.1f}%{RESET}")
-        logger.info(f"详细对比结果已保存至: {summary_path}")
+                logger.info(f"{YELLOW}Behind {best_name} (best baseline) by {mae_imp:.1f}%{RESET}")
+
+        # 显示所有基线对比的简表
+        n_better = sum(1 for m, v in comparison['overall'].items()
+                       if hypergkan_mae < v['baseline_mae'])
+        n_total = len(comparison['overall'])
+        logger.info(f"HyperGKAN beats {n_better}/{n_total} baseline models (12h MAE)")
+        logger.info(f"Full comparison saved to: {summary_path}")
         logger.info("")
 
     # 可视化

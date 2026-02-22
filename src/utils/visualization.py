@@ -382,20 +382,28 @@ def plot_predictions(
     ax4.text(1.25, median, f'Median: {median:.3f}\nQ25: {q25:.3f}\nQ75: {q75:.3f}',
              fontsize=9, va='center')
     
-    # --- (e) 最佳样本+站点展示 ---
+    # --- (e) 最佳样本+站点展示 & (f) 最差样本+站点展示 ---
+    # 直接在所有 (sample, station) 组合中找 MAE 最低和最高的
+    pair_mae = np.mean(np.abs(pred_plot[:, :, :, 0] - target_plot[:, :, :, 0]),
+                       axis=1)  # (B, N)
+    best_flat_idx = np.argmin(pair_mae)
+    worst_flat_idx = np.argmax(pair_mae)
+    best_si, best_sj = np.unravel_index(best_flat_idx, pair_mae.shape)
+    worst_si, worst_sj = np.unravel_index(worst_flat_idx, pair_mae.shape)
+    
+    time_steps = np.arange(1, T + 1)
+    
+    # (e) Best Case
     ax5 = fig2.add_subplot(gs[1, 1])
-    best_si = sample_indices[0]
-    best_sj = station_indices[0]
     pred_best = pred_plot[best_si, :, best_sj, 0]
     target_best = target_plot[best_si, :, best_sj, 0]
-    time_steps = np.arange(1, T + 1)
     
     ax5.fill_between(time_steps, target_best, pred_best, alpha=0.2, color=color_fill)
     ax5.plot(time_steps, target_best, color=color_gt, linewidth=2.5,
              marker='o', markersize=5, label='Ground Truth', zorder=3)
     ax5.plot(time_steps, pred_best, color=color_pred, linewidth=2.5,
              marker='s', markersize=4, linestyle='--', label='Prediction', zorder=3)
-    best_mae = np.mean(np.abs(pred_best - target_best))
+    best_mae = pair_mae[best_si, best_sj]
     ax5.set_xlabel('Forecast Hour', fontsize=11)
     ax5.set_ylabel(f'{element} ({unit})', fontsize=11)
     ax5.set_title(f'(e) Best Case (MAE={best_mae:.3f}{unit})', fontsize=12, fontweight='bold')
@@ -403,10 +411,8 @@ def plot_predictions(
     ax5.grid(True, alpha=0.2)
     ax5.set_xticks(time_steps)
     
-    # --- (f) 较差样本+站点展示 ---
+    # (f) Hard Case
     ax6 = fig2.add_subplot(gs[1, 2])
-    worst_si = sample_indices[-1]
-    worst_sj = station_indices[-1]
     pred_worst = pred_plot[worst_si, :, worst_sj, 0]
     target_worst = target_plot[worst_si, :, worst_sj, 0]
     
@@ -415,7 +421,7 @@ def plot_predictions(
              marker='o', markersize=5, label='Ground Truth', zorder=3)
     ax6.plot(time_steps, pred_worst, color=color_pred, linewidth=2.5,
              marker='s', markersize=4, linestyle='--', label='Prediction', zorder=3)
-    worst_mae = np.mean(np.abs(pred_worst - target_worst))
+    worst_mae = pair_mae[worst_si, worst_sj]
     ax6.set_xlabel('Forecast Hour', fontsize=11)
     ax6.set_ylabel(f'{element} ({unit})', fontsize=11)
     ax6.set_title(f'(f) Hard Case (MAE={worst_mae:.3f}{unit})', fontsize=12, fontweight='bold')
