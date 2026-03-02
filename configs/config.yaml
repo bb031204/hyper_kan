@@ -8,8 +8,8 @@
 dataset_selection:
   Temperature: false    # 温度 (K→°C, output_dim=1, K=3)
   Cloud: false        # 云量 (fraction [0,1], output_dim=1, K=3)
-  Humidity: true    # 湿度 (%, output_dim=1, K=2, 论文Section 4.4)
-  Wind: false         # 风速 (m/s, u+v分量, output_dim=2, K=3)
+  Humidity: false    # 湿度 (%, output_dim=1, K=2, 论文Section 4.4)
+  Wind: true        # 风速 (m/s, u+v分量, output_dim=2, K=3)
 
 # 元数据配置（element 和 experiment_name 由 dataset_selection 自动决定）
 meta:

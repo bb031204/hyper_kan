@@ -340,8 +340,33 @@ def evaluate_predictions(predictions, targets, config, logger):
     for metric, value in overall_metrics.items():
         logger.info(f"  {metric.upper()}: {value:.4f}")
 
-    # 按时间步评估
+    # 按单步评估 (每个预测步的 MAE/RMSE)
     T = predictions.shape[1]
+    step_metrics = {}
+
+    logger.info("")
+    logger.info("=" * 60)
+    logger.info("TEST RESULTS")
+    logger.info("=" * 60)
+    logger.info(f"  Test MAE:            {overall_metrics['mae']:.4f}")
+    logger.info(f"  Test RMSE:           {overall_metrics['rmse']:.4f}")
+    logger.info("")
+    logger.info("-" * 60)
+    logger.info(f"  {'Step':>6}     {'MAE':>10}    {'RMSE':>10}")
+    logger.info("-" * 60)
+
+    for t in range(T):
+        pred_t = pred_tensor[:, t:t+1, :, :]
+        target_t = target_tensor[:, t:t+1, :, :]
+        metrics_t = compute_metrics(pred_t, target_t, metrics=['mae', 'rmse'])
+        step_metrics[t + 1] = metrics_t
+        logger.info(f"  {t+1:>6}    {metrics_t['mae']:>10.4f}    {metrics_t['rmse']:>10.4f}")
+
+    logger.info("-" * 60)
+    logger.info(f"  {'Avg':>6}    {overall_metrics['mae']:>10.4f}    {overall_metrics['rmse']:>10.4f}")
+    logger.info("")
+
+    # 按时间段评估 (累积 horizon)
     horizon_metrics = {}
 
     horizons = [3, 6, 12] if T >= 12 else [T // 3, T // 2, T]
@@ -358,11 +383,11 @@ def evaluate_predictions(predictions, targets, config, logger):
             for metric, value in metrics_h.items():
                 logger.info(f"  {metric.upper()}: {value:.4f}")
 
-    return overall_metrics, horizon_metrics
+    return overall_metrics, horizon_metrics, step_metrics
 
 
 def save_results(inputs, predictions, targets, overall_metrics, horizon_metrics,
-                output_dir, config, logger, comparison=None):
+                output_dir, config, logger, comparison=None, step_metrics=None):
     """保存结果"""
     logger.info("=" * 50)
     logger.info("Saving results...")
@@ -385,6 +410,7 @@ def save_results(inputs, predictions, targets, overall_metrics, horizon_metrics,
     metrics_dict = {
         'overall': overall_metrics,
         'by_horizon': {str(k): v for k, v in horizon_metrics.items()},
+        'by_step': {str(k): v for k, v in (step_metrics or {}).items()},
         'baseline_comparison': comparison
     }
 
@@ -402,9 +428,30 @@ def save_results(inputs, predictions, targets, overall_metrics, horizon_metrics,
             f.write("=" * 75 + "\n\n")
 
             element = comparison.get('element', config['meta']['element'])
+            hypergkan_mae = overall_metrics['mae']
+            hypergkan_rmse = overall_metrics['rmse']
+
             f.write(f"Element: {element}\n")
             f.write(f"Prediction Horizon: 12 hours\n")
             f.write(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+
+            # TEST RESULTS - 逐步测试结果
+            f.write("=" * 60 + "\n")
+            f.write("TEST RESULTS\n")
+            f.write("=" * 60 + "\n")
+            f.write(f"  Test MAE:            {hypergkan_mae:.4f}\n")
+            f.write(f"  Test RMSE:           {hypergkan_rmse:.4f}\n\n")
+
+            if step_metrics:
+                f.write("-" * 60 + "\n")
+                f.write(f"  {'Step':>6}     {'MAE':>10}    {'RMSE':>10}\n")
+                f.write("-" * 60 + "\n")
+                for step in sorted(step_metrics.keys()):
+                    sm = step_metrics[step]
+                    f.write(f"  {step:>6}    {sm['mae']:>10.4f}    {sm['rmse']:>10.4f}\n")
+                f.write("-" * 60 + "\n")
+                f.write(f"  {'Avg':>6}    {hypergkan_mae:>10.4f}    {hypergkan_rmse:>10.4f}\n")
+            f.write("\n")
 
             # 整体对比 (12h)
             f.write("=" * 75 + "\n")
@@ -412,9 +459,6 @@ def save_results(inputs, predictions, targets, overall_metrics, horizon_metrics,
             f.write("=" * 75 + "\n\n")
             f.write(f"{'Model':<20} {'MAE':>12} {'RMSE':>12} {'vs HyperGKAN':>18}\n")
             f.write("-" * 75 + "\n")
-
-            hypergkan_mae = overall_metrics['mae']
-            hypergkan_rmse = overall_metrics['rmse']
 
             for model_name, metrics in comparison['overall'].items():
                 mae_diff = metrics['mae_improvement_pct']
@@ -521,8 +565,27 @@ def save_results(inputs, predictions, targets, overall_metrics, horizon_metrics,
 
 def main(args):
     """主函数"""
+    # 处理checkpoint路径，优先从训练目录加载config
+    checkpoint_path = args.checkpoint
+    output_dir = args.output
+    training_dir = None
+
+    # 推断训练目录
+    if checkpoint_path is not None:
+        checkpoint_dir = os.path.dirname(os.path.abspath(checkpoint_path))
+        if 'checkpoints' in checkpoint_dir:
+            training_dir = os.path.dirname(checkpoint_dir)
+    
+    # 优先使用训练目录中保存的config（确保与checkpoint匹配）
+    config_path = args.config
+    if training_dir is not None:
+        saved_config = os.path.join(training_dir, 'config.yaml')
+        if os.path.exists(saved_config):
+            config_path = saved_config
+            print(f"[Auto] Using training config: {saved_config}")
+
     # 加载配置
-    config = load_config(args.config)
+    config = load_config(config_path)
 
     # ====== 自适应科学配置：根据 dataset_selection 自动设置 ======
     if not validate_dataset_selection(config):
@@ -543,10 +606,6 @@ def main(args):
     logger.info("=" * 50)
     logger.info(f"Element: {config['meta']['element']}")
 
-    # 处理checkpoint路径
-    checkpoint_path = args.checkpoint
-    output_dir = args.output
-
     # 如果未指定checkpoint，自动查找最新的
     if checkpoint_path is None:
         logger.info(f"{YELLOW}未指定checkpoint，自动查找最新训练结果...{RESET}")
@@ -563,12 +622,10 @@ def main(args):
             output_dir = training_dir
             logger.info(f"{GREEN}✓ 输出到训练目录: {output_dir}{RESET}")
     else:
-        # 指定了checkpoint，尝试找到对应的训练目录
+        # 指定了checkpoint，使用推断的训练目录
         if output_dir is None:
-            # 从checkpoint路径推断训练目录
-            checkpoint_dir = os.path.dirname(checkpoint_path)
-            if 'checkpoints' in checkpoint_dir:
-                output_dir = os.path.dirname(checkpoint_dir)
+            if training_dir is not None:
+                output_dir = training_dir
                 logger.info(f"{GREEN}✓ 输出到训练目录: {output_dir}{RESET}")
             else:
                 # 使用绝对路径构建输出目录
@@ -885,7 +942,7 @@ def main(args):
         logger.warning("Preprocessor not available, using raw predictions for evaluation")
 
     # 评估
-    overall_metrics, horizon_metrics = evaluate_predictions(
+    overall_metrics, horizon_metrics, step_metrics = evaluate_predictions(
         predictions, targets, config, logger
     )
 
@@ -899,7 +956,8 @@ def main(args):
     save_results(
         inputs, predictions, targets,
         overall_metrics, horizon_metrics,
-        output_dir, config, logger, comparison
+        output_dir, config, logger, comparison,
+        step_metrics=step_metrics
     )
 
     logger.info("=" * 50)
